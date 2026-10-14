@@ -1,0 +1,17 @@
+FÁCILPRO 4.0 — LOGIN COM SUPABASE
+
+1. Crie um projeto gratuito no Supabase.
+2. Em Project Settings > API, copie Project URL e a chave pública publishable (ou anon).
+3. Edite config.js e substitua os dois valores COLE_...
+4. No Supabase, configure Authentication > URL Configuration:
+   Site URL: https://SEU-USUARIO.github.io/facilpro/
+   Redirect URLs: https://SEU-USUARIO.github.io/facilpro/**
+5. Em Authentication > Providers > Email, mantenha Email habilitado.
+6. Envie index.html, config.js, sw.js, manifest.webmanifest e os ícones para a RAIZ do repositório GitHub Pages.
+7. Aguarde a publicação e atualize o app. Cadastre uma conta e confirme o e-mail se solicitado.
+8. Para trazer cadastros antigos do MESMO navegador, clique em Importar dados antigos. Faça backup primeiro.
+
+IMPORTANTE: Esta etapa implementa login real, mas os dados ainda são locais por usuário e por dispositivo. NÃO há sincronização. A tela exige login, mas armazenamento local não é criptografado. Não use dados reais sensíveis até configurar banco de dados com RLS e revisar segurança. O app precisa de internet para autenticação.
+NUNCA use uma chave secreta/service_role no arquivo config.js.
+
+Atualização universal: cadastro com categorias e exemplos de produtos e serviços, sem alterar a estrutura dos dados.
