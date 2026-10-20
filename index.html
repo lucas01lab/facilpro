@@ -36,7 +36,7 @@ body:not(.auth-ready){min-height:100vh;background:linear-gradient(135deg,#0f1b31
 .cloud-modal-card p{color:#475569;line-height:1.6}
 #cloudDecisionActions{display:flex;flex-direction:column;gap:10px;margin-top:18px}
 #cloudDecisionActions button{min-height:45px}
-</style><link rel="manifest" href="./manifest.webmanifest"><meta name="theme-color" content="#14243b"><link rel="apple-touch-icon" href="./icon-192.png"></head><body><div id="authScreen"><div class="auth-panel"><h1>FácilPro <span style="font-size:13px">4.1</span></h1><p id="authIntro">Entre com seu e-mail e senha para acessar seu espaço.</p><form id="authForm"><label for="authEmail">E-mail</label><input id="authEmail" type="email" autocomplete="email" required placeholder="voce@exemplo.com"><label for="authPassword">Senha</label><input id="authPassword" type="password" autocomplete="current-password" minlength="6" required placeholder="Mínimo de 6 caracteres"><button class="primary" id="authSubmit" type="submit">Entrar</button></form><button class="secondary" id="authToggle" type="button">Criar conta</button><button class="secondary" id="authRecover" type="button">Esqueci minha senha</button><p id="authMessage" class="auth-msg" role="status"></p><p style="font-size:12px">Os dados são guardados neste aparelho e podem ser sincronizados com a nuvem após configurar o banco. Conexão com internet necessária para sincronizar.</p></div></div><div id="accountBar"><span id="accountEmail"></span><div><button id="legacyImport" type="button" title="Importar os cadastros desta instalação anterior">Importar dados antigos</button> <button id="authLogout" type="button">Sair</button></div></div><div id="cloudDecision" class="cloud-modal" hidden role="dialog" aria-modal="true" aria-labelledby="cloudDecisionTitle"><div class="cloud-modal-card"><h2 id="cloudDecisionTitle">Escolher os dados a manter</h2><p id="cloudDecisionText"></p><div id="cloudDecisionActions"></div></div></div><header><h1>FácilPro <span style="font-size:12px;vertical-align:middle;background:#ffffff25;border:1px solid #ffffff40;border-radius:20px;padding:4px 9px">4.1</span></h1><p>Seu negócio organizado, direto do celular.</p></header><div id="notice" role="status"></div><main>
+</style><link rel="manifest" href="./manifest.webmanifest"><meta name="theme-color" content="#14243b"><link rel="apple-touch-icon" href="./icon-192.png"></head><body><div id="authScreen"><div class="auth-panel"><h1>FácilPro <span style="font-size:13px">4.1 Privado</span></h1><p id="authIntro">Acesso exclusivo para clientes autorizados. Entre com o e-mail e a senha fornecidos após a contratação.</p><form id="authForm"><label for="authEmail">E-mail</label><input id="authEmail" type="email" autocomplete="email" required placeholder="voce@exemplo.com"><label for="authPassword">Senha</label><input id="authPassword" type="password" autocomplete="current-password" minlength="6" required placeholder="Mínimo de 6 caracteres"><button class="primary" id="authSubmit" type="submit">Entrar</button></form><button class="secondary" id="authRecover" type="button">Esqueci minha senha</button><p id="authMessage" class="auth-msg" role="status"></p><p style="font-size:12px">Não é possível criar contas neste aplicativo. Sua conta é cadastrada pela administração do FácilPro. Para dúvidas sobre ativação, entre em contato com quem forneceu seu acesso.</p></div></div><div id="accountBar"><span id="accountEmail"></span><div><button id="legacyImport" type="button" title="Importar os cadastros desta instalação anterior">Importar dados antigos</button> <button id="authLogout" type="button">Sair</button></div></div><div id="cloudDecision" class="cloud-modal" hidden role="dialog" aria-modal="true" aria-labelledby="cloudDecisionTitle"><div class="cloud-modal-card"><h2 id="cloudDecisionTitle">Escolher os dados a manter</h2><p id="cloudDecisionText"></p><div id="cloudDecisionActions"></div></div></div><header><h1>FácilPro <span style="font-size:12px;vertical-align:middle;background:#ffffff25;border:1px solid #ffffff40;border-radius:20px;padding:4px 9px">4.1 Privado</span></h1><p>Seu negócio organizado, direto do celular.</p></header><div id="notice" role="status"></div><main>
 <div id="cloudNotice" class="cloud-notice" role="status"><span id="cloudState">Aguardando login</span><button type="button" id="cloudRetry" hidden>Sincronizar novamente</button></div>
 <section id="inicio"><h2>Visão geral</h2><div class="legend"><span class="good">✓ Pago</span><span class="wait">◷ Pendente</span><span class="bad">! Atrasado</span><span>ℹ Informação</span></div><div class="grid"><div class="card metric-card"><div class="muted">📅 Agendamentos</div><div class="metric" id="mAgenda">0</div></div><div class="card metric-card success"><div class="muted">✓ Recebido</div><div class="metric positive" id="mReceita">R$ 0</div></div><div class="card metric-card warn"><div class="muted">◷ A receber</div><div class="metric warning" id="mPendente">R$ 0</div></div><div class="card metric-card bad"><div class="muted">↘ Despesas</div><div class="metric negative" id="mDespesas">R$ 0</div></div></div><div class="card"><h2>Próximos atendimentos</h2><div id="proximos"></div></div><div class="card"><h2>Comece aqui</h2><p class="muted">Cadastre serviços e clientes. Depois, marque um atendimento na agenda.</p><button class="primary" onclick="go('servicos')">Cadastrar serviço</button></div></section>
 <section id="agenda" hidden><h2>Agenda</h2><div class="legend"><span class="good">✓ Pago</span><span class="wait">◷ Pendente</span><span class="bad">! Atrasado</span></div><div class="card"><form id="fAgenda"><label>Cliente</label><select id="aCliente" required></select><label>Serviço</label><select id="aServico" required></select><label>Data e horário</label><input id="aData" type="datetime-local" required><button class="primary">Agendar atendimento</button></form></div><div class="card"><h2>Atendimentos</h2><div id="listaAgenda"></div></div></section>
@@ -65,7 +65,7 @@ async function installFacilPro(){if(!deferredInstallPrompt)return;const p=deferr
 (function(){
   const config=window.FACILPRO_CONFIG||{};
   const el=id=>document.getElementById(id);
-  let client=null,mode='login',activeUser=null;
+  let client=null,activeUser=null;
   const authMsg=(message,ok=false)=>{el('authMessage').textContent=message;el('authMessage').className='auth-msg'+(ok?' ok':'')};
   const fresh=()=>({clientes:[],servicos:[],agenda:[],despesas:[]});
   function showUser(user){
@@ -78,8 +78,6 @@ async function installFacilPro(){if(!deferredInstallPrompt)return;const p=deferr
     document.body.classList.add('auth-ready');render();
     window.FACILPRO_CLOUD?.start({client,user,get:()=>db,put:next=>{db=next;localStorage.setItem(KEY,JSON.stringify(db));render()}});
   }
-  function changeMode(next){mode=next;el('authSubmit').textContent=mode==='signup'?'Criar conta':'Entrar';el('authToggle').textContent=mode==='signup'?'Já tenho conta':'Criar conta';el('authPassword').autocomplete=mode==='signup'?'new-password':'current-password';authMsg('')}
-  el('authToggle').onclick=()=>changeMode(mode==='signup'?'login':'signup');
   if(!config.url||!config.anonKey||config.url.includes('COLE_')||config.anonKey.includes('COLE_')){authMsg('Configuração pendente: preencha a URL e a chave pública no arquivo config.js.');return}
   if(!window.supabase){authMsg('Não foi possível carregar a autenticação. Verifique sua conexão com a internet.');return}
   try{client=window.supabase.createClient(config.url,config.anonKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}})}catch(e){authMsg('Configuração de autenticação inválida.');return}
@@ -87,10 +85,9 @@ async function installFacilPro(){if(!deferredInstallPrompt)return;const p=deferr
     e.preventDefault();const email=el('authEmail').value.trim(),password=el('authPassword').value;
     el('authSubmit').disabled=true;authMsg('Aguarde...');
     try{
-      const result=mode==='signup'?await client.auth.signUp({email,password}):await client.auth.signInWithPassword({email,password});
-      if(result.error)throw result.error;
-      if(mode==='signup'&&!result.data.session){authMsg('Cadastro solicitado! Verifique seu e-mail para confirmar a conta.',true);changeMode('login');authMsg('Verifique seu e-mail para confirmar a conta e depois entre.',true)}
-      else authMsg('Acesso autorizado.',true);
+      const {error}=await client.auth.signInWithPassword({email,password});
+      if(error)throw error;
+      authMsg('Acesso autorizado.',true);
     }catch(err){authMsg(err.message||'Não foi possível autenticar.')}finally{el('authSubmit').disabled=false}
   };
   el('authRecover').onclick=async()=>{
@@ -99,7 +96,7 @@ async function installFacilPro(){if(!deferredInstallPrompt)return;const p=deferr
     const {error}=await client.auth.resetPasswordForEmail(email,{redirectTo});
     authMsg(error?error.message:'Se o endereço estiver cadastrado, você receberá um e-mail para recuperar a senha.',!error)
   };
-  el('authLogout').onclick=async()=>{const {error}=await client.auth.signOut();if(error)alert(error.message);else{showUser(null);db=fresh();KEY='facilpro_mvp_v1';changeMode('login')}};
+  el('authLogout').onclick=async()=>{const {error}=await client.auth.signOut();if(error)alert(error.message);else{showUser(null);db=fresh();KEY='facilpro_mvp_v1';authMsg('Você saiu da sua conta.',true)}};
   el('legacyImport').onclick=()=>{
     if(!activeUser)return;
     let old;try{old=JSON.parse(localStorage.getItem('facilpro_mvp_v1'))}catch{}
