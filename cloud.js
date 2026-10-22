@@ -67,6 +67,7 @@
   function explainError(e) {
     if(/facilpro_data|relation .* does not exist|schema cache|PGRST205|PGRST116|42P01/i.test(e.message||''))
       return 'Banco ainda não configurado. Execute CONFIGURAR-SUPABASE.sql no SQL Editor.';
+    if(/ASSINATURA_INATIVA/i.test(e.message||'')) return 'Sua mensalidade está pendente ou vencida. A sincronização foi bloqueada.';
     if(/LIMITE_1MB/i.test(e.message||'')) return 'O backup ultrapassou 1 MB. Exporte JSON e reduza os dados antes de tentar novamente.';
     if(!navigator.onLine || /Failed to fetch|fetch failed|NetworkError|Load failed/i.test(e.message||''))
       return 'Sem conexão com o Supabase. Dados salvos só neste aparelho por enquanto.';
