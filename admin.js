@@ -42,9 +42,48 @@
         const block=document.createElement('button');block.className='danger';block.textContent='Bloquear';block.disabled=busy;
         block.onclick=()=>change(row,'bloquear');actions.append(block);
       }
+      const devices=document.createElement('button');devices.className='secondary';devices.textContent='Gerenciar acessos';devices.disabled=busy;
+      devices.onclick=()=>openDevices(row);actions.append(devices);
       item.append(actions);out.append(item);
     }
   }
+  const fmtAccess = time => time ? fmtDate(time) : '—';
+  async function openDevices(row) {
+    $('devicesArea').hidden=false;
+    $('devicesOwner').textContent='Conta: '+(row.email||'(sem e-mail)');
+    $('deviceRows').replaceChildren();
+    $('devicesMessage').textContent='Carregando acessos...';
+    $('devicesArea').dataset.user=row.user_id;
+    $('devicesArea').dataset.email=row.email||'';
+    $('devicesArea').scrollIntoView({behavior:'smooth',block:'start'});
+    try {
+      const {data,error}=await api.rpc('facilpro_admin_dispositivos',{p_user_id:row.user_id});
+      if(error)throw error;
+      if($('devicesArea').dataset.user!==row.user_id)return;
+      const rows=Array.isArray(data)?data:[];
+      $('devicesMessage').textContent=rows.length+' de 2 acessos utilizados.';
+      for(const access of rows){
+        const item=document.createElement('div');item.className='member';
+        const info=document.createElement('div');
+        info.append(span('member-name',access.nome||'Navegador'));
+        const details=document.createElement('div');details.className='member-meta';
+        details.textContent='Registrado: '+fmtAccess(access.created_at)+' · Última validação: '+fmtAccess(access.last_seen_at);
+        info.append(details);item.append(info);
+        const btn=document.createElement('button');btn.className='danger';btn.type='button';btn.textContent='Desvincular';
+        btn.onclick=async()=>{
+          if(!window.confirm('Desvincular este acesso de '+(row.email||'esta conta')+'? O navegador antigo perderá autorização e abrirá uma vaga.'))return;
+          btn.disabled=true;
+          const {error:err}=await api.rpc('facilpro_admin_desvincular_dispositivo',{
+            p_user_id:row.user_id,p_token_hash:access.token_hash
+          });
+          if(err){$('devicesMessage').textContent='Erro: '+err.message;btn.disabled=false;return;}
+          await openDevices(row);
+        };
+        item.append(btn);$('deviceRows').append(item);
+      }
+    }catch(e){$('devicesMessage').textContent='Não foi possível consultar os aparelhos: '+(e.message||'erro desconhecido');}
+  }
+  $('closeDevices').onclick=()=>{$('devicesArea').hidden=true;$('devicesArea').dataset.user=''};
   async function load() {
     if(!user)return;
     say('Carregando empreendedores...');

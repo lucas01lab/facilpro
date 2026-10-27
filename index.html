@@ -59,6 +59,7 @@ async function installFacilPro(){if(!deferredInstallPrompt)return;const p=deferr
 </script>
 <script src="./config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="./device.js"></script>
 <script src="./cloud.js"></script>
 <script>
 'use strict';
@@ -98,6 +99,12 @@ async function installFacilPro(){if(!deferredInstallPrompt)return;const p=deferr
       authMsg('Acesso bloqueado: assinatura pendente, vencida ou desativada. Solicite a renovação ao responsável pelo FácilPro.');
       return;
     }
+    authMsg('Autorizando este navegador (máximo de 2 por assinatura)...');
+    let dispositivo;
+    try {dispositivo=await client.rpc('facilpro_dispositivo_registrar',{p_nome:window.FACILPRO_DEVICE.label()});}
+    catch (e) {dispositivo={error:e};}
+    if(ticket!==accessGeneration)return;
+    if(dispositivo.error){authMsg(window.FACILPRO_DEVICE.friendly(dispositivo.error));return;}
     activeUser=user;
     KEY='facilpro_user_'+user.id;
     try{const value=JSON.parse(localStorage.getItem(KEY));db=value&&Array.isArray(value.clientes)&&Array.isArray(value.servicos)&&Array.isArray(value.agenda)?value:fresh()}catch{db=fresh()}
@@ -119,6 +126,11 @@ async function installFacilPro(){if(!deferredInstallPrompt)return;const p=deferr
       if(!activeUser||activeUser.id!==uid)return;
       if(error)hidePanel('Não foi possível verificar a assinatura. Reconecte-se à internet e verifique novamente.');
       else if(!isPaid(data))hidePanel('Sua assinatura venceu ou foi bloqueada. Renove para voltar a utilizar o FácilPro.');
+      else {
+        const device=await client.rpc('facilpro_dispositivo_eu');
+        if(activeUser?.id===uid && (device.error||device.data!==true))
+          hidePanel('Este navegador não está mais autorizado. Solicite ao administrador para gerenciar os dois acessos da conta.');
+      }
     }catch(_){
       if(activeUser?.id===uid)hidePanel('Falha ao verificar assinatura. Conecte-se à internet e tente novamente.');
     }finally{verifyingPassive=false}
@@ -128,7 +140,13 @@ async function installFacilPro(){if(!deferredInstallPrompt)return;const p=deferr
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)verifyPassive()});
   if(!config.url||!config.anonKey||config.url.includes('COLE_')||config.anonKey.includes('COLE_')){authMsg('Configuração pendente: preencha a URL e a chave pública no arquivo config.js.');return}
   if(!window.supabase){authMsg('Não foi possível carregar a autenticação. Verifique sua conexão com a internet.');return}
-  try{client=window.supabase.createClient(config.url,config.anonKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}})}catch(e){authMsg('Configuração de autenticação inválida.');return}
+  try{
+    const token=window.FACILPRO_DEVICE.token();
+    client=window.supabase.createClient(config.url,config.anonKey,{
+      auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true},
+      global:{headers:{'x-facilpro-device':token}}
+    });
+  }catch(e){authMsg(e.message||'Configuração de autenticação inválida.');return}
   el('authForm').onsubmit=async e=>{
     e.preventDefault();const email=el('authEmail').value.trim(),password=el('authPassword').value;
     el('authSubmit').disabled=true;authMsg('Aguarde...');
