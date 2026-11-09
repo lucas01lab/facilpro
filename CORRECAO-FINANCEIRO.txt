@@ -1,0 +1,5 @@
+FácilPro 4.2 — Correção do resumo financeiro
+
+Painel Início e Financeiro agora incluem compras fiadas e respectivos pagamentos, sem mudar os cartões e os menus. O gráfico mensal inclui pagamentos das vendas. Vendas vencidas com saldo aparecem em atraso.
+
+Antes de atualizar, exporte backup. Faça upload dos arquivos da pasta no GitHub e teste primeiro com uma conta de teste.

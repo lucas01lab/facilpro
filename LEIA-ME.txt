@@ -44,3 +44,9 @@ SEGURANÇA
 - config.js contém APENAS a chave pública do Supabase.
 - Nunca publique uma senha de banco, chave secret ou service_role no GitHub.
 - Não copie o arquivo .sql para substituir o index.html.
+
+
+=== ATUALIZAÇÃO: VENDAS E FIADOS NA AGENDA ===
+Na aba Agenda há uma nova área Vendas e fiados. Escolha cliente, adicione vários produtos e quantidades, registre entrada e vencimento e salve a compra. O resumo agrupa compras por cliente, mostra saldo e aceita pagamentos parciais. Há opção de enviar resumo pelo WhatsApp.
+O painel Início e o painel admin não foram alterados. O arquivo novo vendas.js deve ser enviado ao GitHub junto com index.html, cloud.js e sw.js.
+IMPORTANTE: faça um backup JSON antes da atualização. Teste a sincronização da nova coleção vendas entre dois dispositivos usando uma conta de teste antes de vender essa funcionalidade. A rotina Supabase facilpro_save deve aceitar o campo JSON vendas.
