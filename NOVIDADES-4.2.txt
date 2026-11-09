@@ -1,0 +1,21 @@
+FÁCILPRO 4.2 — VENDAS E FIADOS NA AGENDA
+
+NOVO
+- Agenda > Vendas e fiados: vários produtos e quantidades na mesma venda.
+- Pagamento à vista ou fiado, entrada e pagamentos parciais.
+- Histórico e saldo total acumulado por cliente, com opção WhatsApp.
+- Mantém a visão geral e o financeiro atuais sem alterações nos números.
+- Os dados de vendas são incluídos no backup JSON e na sincronização da nuvem.
+
+ATUALIZAÇÃO SEGURA
+1. Antes de atualizar, entre no app, aguarde 'Sincronizado com a nuvem' e exporte um backup JSON em Financeiro. Guarde o arquivo.
+2. Envie os arquivos da pasta para a raiz do repositório (substitua os existentes).
+3. Aguarde o GitHub Pages publicar e atualize o navegador com Ctrl+Shift+R.
+4. Entre em Agenda e teste com um cliente de exemplo.
+5. Confira 'Sincronizado com a nuvem' antes de acessar por outro dispositivo.
+
+NÃO É NECESSÁRIO EXECUTAR SQL: vendas são armazenadas dentro do payload JSON já existente do usuário.
+ATENÇÃO: não use simultaneamente a versão antiga em outro aparelho até ambos atualizarem.
+A sincronização substitui o documento inteiro e pode solicitar resolução de conflitos.
+Os registros de venda não entram nos indicadores do painel principal ou financeiro; são consultados apenas na Agenda.
+Esta atualização não controla estoque físico nem gera cobrança automática.

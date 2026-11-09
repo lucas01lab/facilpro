@@ -3,9 +3,10 @@
 (function () {
   'use strict';
   const $ = id => document.getElementById(id);
-  const blank = () => ({clientes:[], servicos:[], agenda:[], despesas:[]});
-  const fields = ['clientes','servicos','agenda','despesas'];
-  const valid = obj => !!obj && fields.every(k => Array.isArray(obj[k]));
+  const blank = () => ({clientes:[], servicos:[], agenda:[], despesas:[], vendas:[]});
+  const fields = ['clientes','servicos','agenda','despesas','vendas'];
+  const requiredFields = ['clientes','servicos','agenda','despesas'];
+  const valid = obj => !!obj && requiredFields.every(k => Array.isArray(obj[k])) && (obj.vendas === undefined || Array.isArray(obj.vendas));
   const normalize = obj => Object.fromEntries(fields.map(k => [k,Array.isArray(obj?.[k]) ? obj[k] : []]));
   const stable = v => JSON.stringify(v, function (k,x) {
     return x && !Array.isArray(x) && typeof x === 'object'
