@@ -1,0 +1,9 @@
+FácilPro 4.2 — Correção de contas por cliente
+
+- Botão Excluir compra em cada registro, com confirmação antes de apagar.
+- Exclusão atualiza automaticamente as pendências e recebimentos no Financeiro.
+- Compras com quantidade ou preço inválido são sinalizadas e não contaminam o resumo com NaN.
+- As compras válidas continuam somadas normalmente.
+- Dados de outras funções, nome do app e painel administrativo foram preservados.
+
+IMPORTANTE: Exporte backup JSON antes de instalar. Exclusão é permanente e também retira os pagamentos ligados à compra. Confirme sincronização na nuvem após editar.

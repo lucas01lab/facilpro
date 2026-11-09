@@ -66,7 +66,10 @@ function resumoVendas(){
   for(const venda of (Array.isArray(db.vendas)?db.vendas:[])){
     const itens=Array.isArray(venda.itens)?venda.itens:[];
     const pagamentos=Array.isArray(venda.pagamentos)?venda.pagamentos:[];
-    const totalCentavos=itens.reduce((n,item)=>n+Math.round(Number(item.preco||0)*100)*Number(item.quantidade||0),0);
+    if(!itens.length || itens.some(item=>item.quantidade==null || String(item.quantidade).trim()==='' ||
+       !Number.isSafeInteger(Number(item.quantidade)) || Number(item.quantidade)<1 ||
+       !Number.isFinite(Number(item.preco)) || Number(item.preco)<0))continue;
+    const totalCentavos=itens.reduce((n,item)=>n+Math.round(Number(item.preco)*100)*Number(item.quantidade),0);
     const pagoCentavos=pagamentos.reduce((n,p)=>n+Math.round(Number(p.valor||0)*100),0);
     const saldoCentavos=Math.max(0,totalCentavos-pagoCentavos);
     recebido+=pagoCentavos/100;
