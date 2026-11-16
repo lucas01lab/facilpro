@@ -1,0 +1,7 @@
+FácilPro 4.2 — juros simples por atraso para novas vendas fiadas.
+Taxa mensal padrão por empreendedor, ajustável em Agenda.
+Vendas antigas não são afetadas; os termos de juros ficam gravados em cada venda.
+Pagamentos são abatidos primeiro dos juros vencidos e depois do principal.
+Sem juros compostos. Atraso baseado nos dias corridos após vencimento, mês comercial de 30 dias.
+Antes de publicar: exporte backup e teste sincronização e cálculos.
+A cobrança depende de acordo prévio e legislação aplicável.

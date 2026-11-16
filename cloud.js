@@ -3,11 +3,11 @@
 (function () {
   'use strict';
   const $ = id => document.getElementById(id);
-  const blank = () => ({clientes:[], servicos:[], agenda:[], despesas:[], vendas:[]});
+  const blank = () => ({clientes:[], servicos:[], agenda:[], despesas:[], vendas:[], configAtraso:{ativo:false,taxa:0.5}});
   const fields = ['clientes','servicos','agenda','despesas','vendas'];
   const legacyFields = ['clientes','servicos','agenda','despesas'];
   const valid = obj => !!obj && legacyFields.every(k => Array.isArray(obj[k]));
-  const normalize = obj => Object.fromEntries(fields.map(k => [k,Array.isArray(obj?.[k]) ? obj[k] : []]));
+  const normalize = obj => ({...Object.fromEntries(fields.map(k => [k,Array.isArray(obj?.[k]) ? obj[k] : []])), configAtraso: obj?.configAtraso && typeof obj.configAtraso==='object' ? {ativo:obj.configAtraso.ativo===true,taxa:Number(obj.configAtraso.taxa)||0} : {ativo:false,taxa:0.5}});
   const stable = v => JSON.stringify(v, function (k,x) {
     return x && !Array.isArray(x) && typeof x === 'object'
       ? Object.fromEntries(Object.entries(x).sort(([a],[b]) => a.localeCompare(b))) : x;

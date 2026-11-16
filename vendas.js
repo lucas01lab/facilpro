@@ -16,7 +16,8 @@
   const totalCents = v => invalidItems(v) ? 0 : sum(v.itens.map(i => cents(i.preco) * Number(i.quantidade)));
   const paidCents = v => sum((Array.isArray(v.pagamentos) ? v.pagamentos : []).map(p =>
     Number.isFinite(Number(p.valor)) && Number(p.valor) >= 0 ? cents(p.valor) : 0));
-  const dueCents = v => Math.max(0, totalCents(v) - paidCents(v));
+  const late = v => window.FACILPRO_ATRASO.calc(v);
+  const dueCents = v => late(v).outstanding;
   const safeId = s => String(s || '').replace(/[^a-zA-Z0-9_-]/g,'');
 
   function renderCart() {
@@ -46,7 +47,8 @@
     if(!Number.isFinite(entry)||entry<0||cents(entry)>amount)return alert('O valor pago não pode ser negativo nem ultrapassar o total.');
     const due=$v('vVencimento').value;
     if(due && !/^\d{4}-\d{2}-\d{2}$/.test(due))return alert('Informe uma data de vencimento válida.');
-    sales().push({id:id(),cliente,data:new Date().toISOString(),vencimento:due,itens:cart.map(i=>({...i})),pagamentos:entry>0?[{id:id(),valor:Math.round(entry*100)/100,data:new Date().toISOString()}]:[]});
+    if(db.configAtraso?.ativo && cents(entry)<amount && !due)return alert('Informe o vencimento para uma venda fiada com juros ativados.');
+    sales().push({id:id(),cliente,data:new Date().toISOString(),vencimento:due,itens:cart.map(i=>({...i})),pagamentos:entry>0?[{id:id(),valor:Math.round(entry*100)/100,data:new Date().toISOString()}]:[],jurosAtraso:{ativo:db.configAtraso?.ativo===true && cents(entry)<amount, taxa:Number(db.configAtraso?.taxa)||0}});
     cart=[];$v('fVenda').reset();renderCart();save();msg('Compra salva e saldo atualizado');
   }
   function payment(key) {
@@ -80,14 +82,17 @@
     const client=db.clientes.find(c=>c.id===clientKey);if(!client)return;
     const list=sales().filter(v=>v.cliente===clientKey).sort((a,b)=>a.data.localeCompare(b.data));
     const valid=list.filter(v=>!invalidItems(v));
-    const total=sum(valid.map(totalCents)),paid=sum(valid.map(paidCents));
+    const total=sum(valid.map(totalCents)),paid=sum(valid.map(paidCents)),due=sum(valid.map(dueCents));
     const lines=valid.flatMap(v=>['',new Date(v.data).toLocaleDateString('pt-BR')+':',...(v.itens||[]).map(i=>`${i.quantidade}x ${i.nome} — ${asMoney(cents(i.preco)*i.quantidade)}`),`Total: ${asMoney(totalCents(v))} | Pago: ${asMoney(paidCents(v))}`]);
-    const message=`Resumo de compras — ${client.nome}\n${lines.join('\n')}\n\nTotal comprado: ${asMoney(total)}\nTotal pago: ${asMoney(paid)}\nSaldo a pagar: ${asMoney(Math.max(0,total-paid))}${list.length!==valid.length?"\nATENÇÃO: existem registros inconsistentes que não entram neste resumo.":""}`;
+    const message=`Resumo de compras — ${client.nome}\n${lines.join('\n')}\n\nTotal comprado: ${asMoney(total)}\nTotal pago: ${asMoney(paid)}\nSaldo a pagar (incluindo juros aplicáveis): ${asMoney(due)}${list.length!==valid.length?"\nATENÇÃO: existem registros inconsistentes que não entram neste resumo.":""}`;
     let phone=(client.fone||'').replace(/\D/g,'');if(phone.length===10||phone.length===11)phone='55'+phone;
     window.open('https://wa.me/'+(phone.length>=12?phone:'')+'?text='+encodeURIComponent(message),'_blank','noopener');
   }
+  let lastRateKey=null;
   function render() {
     if(!$v('vCliente'))return;
+    const rateKey=JSON.stringify(window.FACILPRO_ATRASO.config(db));
+    if(rateKey!==lastRateKey){renderRate();lastRateKey=rateKey;}
     const choice=$v('vCliente').value,prodChoice=$v('vProduto').value;
     $v('vCliente').innerHTML=opts(db.clientes);$v('vCliente').value=choice;
     $v('vProduto').innerHTML=opts(db.servicos);$v('vProduto').value=prodChoice;
@@ -99,16 +104,33 @@
       const list=sales().filter(v=>v.cliente===c.id).sort((a,b)=>b.data.localeCompare(a.data));
       const valid=list.filter(v=>!invalidItems(v));
       const badCount=list.length-valid.length;
-      const all=sum(valid.map(totalCents)),paid=sum(valid.map(paidCents)),due=Math.max(0,all-paid);
-      return `<article class="fiado-cliente"><h3>${esc(c.nome)}</h3><div class="fiado-line">${list.length} compra(s) · Total válido: <b>${asMoney(all)}</b> · Pago: ${asMoney(paid)}</div><div class="fiado-line ${due?'fiado-saldo':'fiado-pago'}">${due?'Em aberto: ':'Saldo em aberto: '}${asMoney(due)}</div>${badCount?`<p class="fiado-note" style="color:#b91c1c"><b>Atenção:</b> ${badCount} compra(s) com dados inconsistentes, fora dos totais acima. Confira ou exclua apenas os registros errados.</p>`:''}<div class="actions"><button type="button" class="secondary" onclick="FACILPRO_VENDAS.compartilhar('${safeId(c.id)}')">Enviar resumo no WhatsApp</button></div><details><summary>Ver compras e pagamentos</summary>${list.map(v=>{
+      const all=sum(valid.map(totalCents)),paid=sum(valid.map(paidCents)),due=sum(valid.map(dueCents)),juros=sum(valid.map(v=>late(v).interest));
+      return `<article class="fiado-cliente"><h3>${esc(c.nome)}</h3><div class="fiado-line">${list.length} compra(s) · Total válido: <b>${asMoney(all)}</b> · Pago: ${asMoney(paid)}</div>${juros?`<div class="fiado-line">Juros pendentes: <b>${asMoney(juros)}</b></div>`:''}<div class="fiado-line ${due?'fiado-saldo':'fiado-pago'}">${due?'Em aberto: ':'Saldo em aberto: '}${asMoney(due)}</div>${badCount?`<p class="fiado-note" style="color:#b91c1c"><b>Atenção:</b> ${badCount} compra(s) com dados inconsistentes, fora dos totais acima. Confira ou exclua apenas os registros errados.</p>`:''}<div class="actions"><button type="button" class="secondary" onclick="FACILPRO_VENDAS.compartilhar('${safeId(c.id)}')">Enviar resumo no WhatsApp</button></div><details><summary>Ver compras e pagamentos</summary>${list.map(v=>{
         const broken=invalidItems(v);
+        const info=broken?null:late(v);
         const remaining=broken?0:dueCents(v),dueDate=v.vencimento ? v.vencimento.split('-').reverse().join('/') : 'Sem vencimento';
         const items=(v.itens||[]).map(i=>`${esc(i.nome||'Produto não identificado')} (${broken && (!Number.isSafeInteger(Number(i.quantidade)) || i.quantidade==null)?'quantidade inválida':esc(i.quantidade)} × ${money(i.preco)})`).join('<br>');
-        const details=broken?'<div class="fiado-line" style="color:#b91c1c"><b>Registro inconsistente: quantidade/preço inválido. Não contado no resumo.</b></div>':`<div class="fiado-line">Total: ${asMoney(totalCents(v))} · Pago: ${asMoney(paidCents(v))} · <strong>Saldo: ${asMoney(remaining)}</strong></div>`;
+        const details=broken?'<div class="fiado-line" style="color:#b91c1c"><b>Registro inconsistente: quantidade/preço inválido. Não contado no resumo.</b></div>':`<div class="fiado-line">Total: ${asMoney(totalCents(v))} · Pago: ${asMoney(paidCents(v))} · <strong>Saldo: ${asMoney(remaining)}</strong>${info.interest?`<br>Juros em aberto: ${asMoney(info.interest)} · ${info.daysLate} dia(s) de atraso · ${info.rate}% ao mês`:''}</div>`;
         return `<div class="fiado-venda"><b>${esc(new Date(v.data).toLocaleDateString('pt-BR'))}</b> · ${broken?'Revisar dados':remaining?'Fiado / parcial':'Quitada'}<div class="fiado-line">${items}</div>${details}<div class="fiado-note">Vencimento: ${esc(dueDate)} · ${(v.pagamentos||[]).length} pagamento(s)</div>${!broken&&remaining?`<button type="button" class="secondary" onclick="FACILPRO_VENDAS.pagar('${safeId(v.id)}')">+ Registrar pagamento</button>`:''}<button type="button" class="secondary danger" onclick="FACILPRO_VENDAS.excluir('${safeId(v.id)}')">Excluir compra</button></div>`;
       }).join('')}</details></article>`;
     }).join('') || '<p class="muted">Nenhuma compra registrada para essa busca.</p>';
   }
+  function renderRate(){
+    const c=window.FACILPRO_ATRASO.config(db),field=$v('jurosTaxa');
+    $v('jurosAtivo').checked=c.ativo;
+    field.value=['0.5','1','2'].includes(String(c.taxa))?String(c.taxa):'custom';
+    $v('jurosOutro').value=String(c.taxa);
+    $v('jurosOutroBox').hidden=field.value!=='custom';
+    $v('jurosEstado').textContent=c.ativo?'Ativo: '+c.taxa.toLocaleString('pt-BR')+'% ao mês para novas vendas.':'Desativado: novas vendas sem juros automáticos.';
+  }
+  $v('jurosTaxa').addEventListener('change',()=>{$v('jurosOutroBox').hidden=$v('jurosTaxa').value!=='custom';});
+  $v('fAtraso').addEventListener('submit',e=>{
+    e.preventDefault(); const select=$v('jurosTaxa').value;
+    const rate=Number(select==='custom'?$v('jurosOutro').value:select);
+    if(!Number.isFinite(rate)||rate<0||rate>2|| (select==='custom' && $v('jurosOutro').value===''))return alert('Informe uma taxa entre 0 e 2% ao mês.');
+    db.configAtraso={ativo:$v('jurosAtivo').checked,taxa:rate};
+    save();renderRate();msg('Taxa padrão salva para novas vendas.');
+  });
   $v('vProduto').addEventListener('change',currentProduct);
   $v('vAdicionar').addEventListener('click',addProduct);
   $v('vBusca').addEventListener('input',render);
