@@ -18,6 +18,8 @@
   let generation = 0;
   let timer = null;
   let queued = false;
+  let monitor = null;
+  let checking = false;
 
   function status(message, type='info', showRetry=false) {
     $('cloudState').textContent=message;
@@ -84,7 +86,7 @@
     s.ready=false;
     s.revision=cloud.revision;
     s.cloud=cloud.payload;
-    status('Atenção: existem dados diferentes no aparelho e na nuvem.','warn',false);
+    status('Aguardando sincronização: dados diferentes. Escolha a versão a manter.','warn',false);
     overlay(reason+' Escolha qual cópia deve prevalecer. A versão substituída receberá uma cópia de resgate neste navegador. Se possível, exporte também um backup JSON antes.', [
       {label:'Usar dados da nuvem',primary:true,action:()=>{
         if(session!==s)return;
@@ -92,7 +94,7 @@
         s.base=normalize(s.cloud);
         marker(s);
         s.ready=true;
-        status('Sincronizado com a nuvem','ok');
+        status('Salvo na nuvem','ok');
       }},
       {label:'Enviar dados deste aparelho',action:()=>{
         if(session!==s)return;
@@ -119,12 +121,12 @@
       const local=normalize(s.get());
       const base=s.base;
       if(identical(local,remote.payload)) {
-        s.base=remote.payload;marker(s);s.ready=true;status('Sincronizado com a nuvem','ok');
+        s.base=remote.payload;marker(s);s.ready=true;status('Salvo na nuvem','ok');
         return;
       }
       if(!hasData(local) && hasData(remote.payload)) {
         if(base===null || identical(local,base)) {
-          updateLocal(s,remote.payload);s.ready=true;status('Dados carregados da nuvem','ok');
+          updateLocal(s,remote.payload);s.ready=true;status('Salvo na nuvem · dados recebidos','ok');
         } else { conflict(s,remote,'Esta conta tem dados na nuvem, mas o cache local está vazio.'); }
         return;
       }
@@ -132,7 +134,7 @@
         s.base=blank();marker(s);s.ready=true;queued=true;await flush();return;
       }
       if(base!==null && identical(local,base)) {
-        updateLocal(s,remote.payload);s.ready=true;status('Dados atualizados pela nuvem','ok');return;
+        updateLocal(s,remote.payload);s.ready=true;status('Salvo na nuvem · dados atualizados','ok');return;
       }
       if(base!==null && identical(remote.payload,base)) {
         s.base=remote.payload;marker(s);s.ready=true;queued=true;await flush();return;
@@ -144,10 +146,10 @@
     const s=session;
     if(!s || !s.ready || s.inFlight)return;
     clearTimeout(timer);timer=null;
-    if(!queued && identical(s.get(),s.base))return;
+    if(!queued && identical(s.get(),s.base)) {status('Salvo na nuvem','ok');return;}
     queued=false;
     const snapshot=normalize(s.get());
-    if(identical(snapshot,s.base)) {status('Sincronizado com a nuvem','ok');return;}
+    if(identical(snapshot,s.base)) {status('Salvo na nuvem','ok');return;}
     s.inFlight=true;
     status('Salvando na nuvem...');
     try {
@@ -158,11 +160,20 @@
       if(session!==s)return;
       if(!Array.isArray(data)||!data[0]||!Number.isFinite(Number(data[0].new_revision)))
         throw new Error('Resposta inesperada do banco.');
-      s.revision=Number(data[0].new_revision);
-      s.base=snapshot;
+      const expectedRevision=Number(data[0].new_revision);
+      // Um HTTP 200 na RPC não basta: ler novamente a versão gravada.
+      const confirmed=await queryRemote(s);
+      if(session!==s)return;
+      if(confirmed.revision!==expectedRevision || !identical(confirmed.payload,snapshot)) {
+        // Não sobrescreve alterações locais nem aceita uma confirmação ambígua.
+        conflict(s,confirmed,'O servidor devolveu dados diferentes dos enviados.');
+        return;
+      }
+      s.revision=confirmed.revision;
+      s.base=confirmed.payload;
       marker(s);
       if(!identical(s.get(),snapshot))queued=true;
-      status(queued?'Salvando mais alterações...':'Sincronizado com a nuvem',queued?'info':'ok');
+      status(queued?'Aguardando sincronização · novas alterações':'Salvo na nuvem',queued?'warn':'ok');
     } catch(e) {
       if(session!==s)return;
       if(/CONFLITO_REVISAO|P0001/.test(e.message||'')) {
@@ -185,10 +196,14 @@
       base:meta && valid(meta.base) ? normalize(meta.base) : null,ready:false,inFlight:false,token:++generation};
     session=s;
     initialize(s);
+    // Busca alterações remotas quando o app estiver em primeiro plano.
+    // Nunca substitui dados locais pendentes: nesse caso, exige uma escolha.
+    monitor=setInterval(()=>{if(!document.hidden)checkRemote(s);},30000);
   }
   function stop() {
     generation++;
     clearTimeout(timer);timer=null;
+    clearInterval(monitor);monitor=null;checking=false;
     session=null;queued=false;
     dismiss();
     status('Aguardando login');
@@ -197,8 +212,8 @@
     const s=session;
     if(!s)return;
     queued=true;
-    if(!s.ready) {status('Alterações locais pendentes de sincronização','warn',true);return;}
-    status('Alterações pendentes...','warn');
+    if(!s.ready) {status('Aguardando sincronização · alterações só neste aparelho','warn',true);return;}
+    status('Aguardando sincronização · salvamento pendente','warn');
     clearTimeout(timer);
     timer=setTimeout(flush,650);
   }
@@ -212,19 +227,23 @@
   window.FACILPRO_CLOUD={start,stop,changed,retry};
   $('cloudRetry').addEventListener('click',retry);
   window.addEventListener('online',()=>{if(session)retry()});
+  async function checkRemote(s) {
+    if(checking || session!==s || !s.ready || s.inFlight || queued || document.hidden)return;
+    checking=true;
+    try {
+      const remote=await queryRemote(s);
+      if(session!==s || !s.ready || s.inFlight || queued)return;
+      if(remote.revision===s.revision)return;
+      if(identical(s.get(),s.base)) {
+        s.revision=remote.revision;
+        updateLocal(s,remote.payload);
+        status('Salvo na nuvem · atualizado de outro aparelho','ok');
+      } else conflict(s,remote,'Outro aparelho alterou os dados e há mudanças locais.');
+    } catch(e) {
+      if(session===s) status('Erro ao sincronizar: '+explainError(e),'error',true);
+    } finally {checking=false;}
+  }
   document.addEventListener('visibilitychange',()=>{
-    if(!document.hidden&&session && session.ready && !session.inFlight && !queued && identical(session.get(),session.base)) {
-      // Verificar alterações de outro dispositivo quando esta aba voltar ao foco.
-      const s=session;
-      queryRemote(s).then(remote=>{
-        if(session!==s || s.inFlight || queued || !s.ready)return;
-        if(remote.revision===s.revision)return;
-        if(identical(s.get(),s.base)){
-          s.revision=remote.revision;
-          updateLocal(s,remote.payload);
-          status('Atualizado de outro dispositivo','ok');
-        } else conflict(s,remote,'Houve uma alteração enquanto o app estava aberto.');
-      }).catch(e=>{if(session===s)status(explainError(e),'error',true)});
-    }
+    if(!document.hidden && session)checkRemote(session);
   });
 })();

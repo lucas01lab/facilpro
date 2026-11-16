@@ -1,0 +1,9 @@
+FácilPro 4.2 — Indicadores de sincronização
+
+• Salvo na nuvem: confirmado por nova leitura do Supabase após gravar.
+• Aguardando sincronização: há alterações ainda não confirmadas.
+• Erro ao sincronizar: permite nova tentativa.
+• Verificação automática de mudanças de outro aparelho a cada 30 segundos com o app visível e ao retornar à tela.
+• Conflitos não são resolvidos automaticamente: o usuário escolhe a cópia após fazer backup.
+
+IMPORTANTE: faça backup JSON antes da atualização. Teste usando registros fictícios.
