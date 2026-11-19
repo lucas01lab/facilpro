@@ -1,4 +1,4 @@
-const CACHE='facilpro-4.2-sync-status-20261116';const FILES=['./','./index.html','./config.js','./cloud.js','./vendas.js','./atraso.js','./admin.html','./admin.js','./device.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const CACHE='facilpro-4.2-comprovantes-20261119';const FILES=['./','./index.html','./config.js','./cloud.js','./vendas.js','./atraso.js','./admin.html','./admin.js','./device.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES)));self.skipWaiting()});
 self.addEventListener('activate',e=>{e.waitUntil(Promise.all([caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('facilpro-')&&k!==CACHE).map(k=>caches.delete(k)))),self.clients.claim()]))});
 self.addEventListener('fetch',e=>{if(e.request.method!=='GET'||new URL(e.request.url).origin!==self.location.origin)return;

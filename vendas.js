@@ -78,16 +78,47 @@
     save();
     msg('Compra excluída. Valores financeiros recalculados.');
   }
+  let currentReceipt={message:'',phone:''};
+  function roundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
   function receipt(clientKey) {
     const client=db.clientes.find(c=>c.id===clientKey);if(!client)return;
     const list=sales().filter(v=>v.cliente===clientKey).sort((a,b)=>a.data.localeCompare(b.data));
     const valid=list.filter(v=>!invalidItems(v));
     const total=sum(valid.map(totalCents)),paid=sum(valid.map(paidCents)),due=sum(valid.map(dueCents));
+    const canvas=$v('receiptCanvas'),ctx=canvas.getContext('2d');
+    canvas.width=900;canvas.height=Math.max(1120,430+valid.reduce((n,v)=>n+100+(v.itens||[]).length*42,0));
+    ctx.fillStyle='#f1f5f9';ctx.fillRect(0,0,900,canvas.height);
+    ctx.fillStyle='#14243b';ctx.fillRect(0,0,900,245);
+    ctx.fillStyle='#22c55e';ctx.beginPath();ctx.arc(790,85,105,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#fff';ctx.font='bold 56px Arial';ctx.fillText('FácilPro',60,100);
+    ctx.font='26px Arial';ctx.fillText('SEU NEGÓCIO ORGANIZADO',62,150);
+    ctx.font='bold 34px Arial';ctx.fillText('COMPROVANTE DE COMPRAS',60,215);
+    let y=315;ctx.fillStyle='#fff';roundRect(ctx,45,y,810,125,22);ctx.fill();
+    ctx.fillStyle='#64748b';ctx.font='22px Arial';ctx.fillText('CLIENTE',75,y+42);
+    ctx.fillStyle='#14243b';ctx.font='bold 34px Arial';ctx.fillText(String(client.nome||'Cliente').slice(0,35),75,y+88);
+    y+=165;
+    for(const v of valid){
+      ctx.fillStyle='#fff';roundRect(ctx,45,y,810,95+(v.itens||[]).length*42,18);ctx.fill();
+      ctx.fillStyle='#2563eb';ctx.font='bold 24px Arial';ctx.fillText(new Date(v.data).toLocaleDateString('pt-BR')+(v.vencimento?' · Vencimento '+v.vencimento.split('-').reverse().join('/') :''),75,y+40);
+      let iy=y+82;ctx.fillStyle='#334155';ctx.font='22px Arial';
+      for(const item of v.itens||[]){ctx.fillText(`${item.quantidade} × ${String(item.nome).slice(0,34)}`,75,iy);ctx.textAlign='right';ctx.fillText(asMoney(cents(item.preco)*item.quantidade),820,iy);ctx.textAlign='left';iy+=42;}
+      ctx.fillStyle='#64748b';ctx.font='bold 21px Arial';ctx.fillText('Total '+asMoney(totalCents(v))+'  ·  Pago '+asMoney(paidCents(v)),75,iy+8);y=iy+55;
+    }
+    y+=10;ctx.fillStyle='#14243b';roundRect(ctx,45,y,810,235,22);ctx.fill();
+    ctx.fillStyle='#cbd5e1';ctx.font='24px Arial';ctx.fillText('RESUMO FINANCEIRO',75,y+48);
+    ctx.fillStyle='#fff';ctx.font='26px Arial';ctx.fillText('Total comprado',75,y+100);ctx.textAlign='right';ctx.fillText(asMoney(total),820,y+100);
+    ctx.textAlign='left';ctx.fillText('Total pago',75,y+150);ctx.textAlign='right';ctx.fillStyle='#86efac';ctx.fillText(asMoney(paid),820,y+150);
+    ctx.textAlign='left';ctx.fillStyle='#fff';ctx.font='bold 30px Arial';ctx.fillText('Saldo em aberto',75,y+205);ctx.textAlign='right';ctx.fillStyle='#fca5a5';ctx.fillText(asMoney(due),820,y+205);ctx.textAlign='left';
+    y+=285;ctx.fillStyle='#64748b';ctx.font='22px Arial';ctx.textAlign='center';ctx.fillText('Obrigado pela preferência!',450,y);ctx.font='18px Arial';ctx.fillText('Comprovante gerado pelo FácilPro · '+new Date().toLocaleString('pt-BR'),450,y+35);ctx.textAlign='left';
     const lines=valid.flatMap(v=>['',new Date(v.data).toLocaleDateString('pt-BR')+':',...(v.itens||[]).map(i=>`${i.quantidade}x ${i.nome} — ${asMoney(cents(i.preco)*i.quantidade)}`),`Total: ${asMoney(totalCents(v))} | Pago: ${asMoney(paidCents(v))}`]);
-    const message=`Resumo de compras — ${client.nome}\n${lines.join('\n')}\n\nTotal comprado: ${asMoney(total)}\nTotal pago: ${asMoney(paid)}\nSaldo a pagar (incluindo juros aplicáveis): ${asMoney(due)}${list.length!==valid.length?"\nATENÇÃO: existem registros inconsistentes que não entram neste resumo.":""}`;
+    const message=`Comprovante FácilPro — ${client.nome}\n${lines.join('\n')}\n\nTotal comprado: ${asMoney(total)}\nTotal pago: ${asMoney(paid)}\nSaldo em aberto (incluindo juros aplicáveis): ${asMoney(due)}`;
     let phone=(client.fone||'').replace(/\D/g,'');if(phone.length===10||phone.length===11)phone='55'+phone;
-    window.open('https://wa.me/'+(phone.length>=12?phone:'')+'?text='+encodeURIComponent(message),'_blank','noopener');
+    currentReceipt={message,phone:phone.length>=12?phone:''};$v('receiptModal').hidden=false;
   }
+  function downloadReceipt(){const canvas=$v('receiptCanvas');canvas.toBlob(blob=>{if(!blob)return alert('Não foi possível gerar a imagem.');const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='comprovante-facilpro.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);},'image/png');}
+  function printReceipt(){const data=$v('receiptCanvas').toDataURL('image/png'),w=window.open('','_blank');if(!w)return alert('Permita janelas pop-up para salvar o PDF.');w.document.write(`<html><head><title>Comprovante FácilPro</title><style>body{margin:0;text-align:center}img{width:100%;max-width:750px}@media print{img{max-width:100%}}</style></head><body><img src="${data}"><script>window.onload=()=>window.print()<\/script></body></html>`);w.document.close();}
+  function sendReceipt(){const url='https://wa.me/'+currentReceipt.phone+'?text='+encodeURIComponent(currentReceipt.message);window.open(url,'_blank','noopener');}
+
   let lastRateKey=null;
   function render() {
     if(!$v('vCliente'))return;
@@ -105,7 +136,7 @@
       const valid=list.filter(v=>!invalidItems(v));
       const badCount=list.length-valid.length;
       const all=sum(valid.map(totalCents)),paid=sum(valid.map(paidCents)),due=sum(valid.map(dueCents)),juros=sum(valid.map(v=>late(v).interest));
-      return `<article class="fiado-cliente"><h3>${esc(c.nome)}</h3><div class="fiado-line">${list.length} compra(s) · Total válido: <b>${asMoney(all)}</b> · Pago: ${asMoney(paid)}</div>${juros?`<div class="fiado-line">Juros pendentes: <b>${asMoney(juros)}</b></div>`:''}<div class="fiado-line ${due?'fiado-saldo':'fiado-pago'}">${due?'Em aberto: ':'Saldo em aberto: '}${asMoney(due)}</div>${badCount?`<p class="fiado-note" style="color:#b91c1c"><b>Atenção:</b> ${badCount} compra(s) com dados inconsistentes, fora dos totais acima. Confira ou exclua apenas os registros errados.</p>`:''}<div class="actions"><button type="button" class="secondary" onclick="FACILPRO_VENDAS.compartilhar('${safeId(c.id)}')">Enviar resumo no WhatsApp</button></div><details><summary>Ver compras e pagamentos</summary>${list.map(v=>{
+      return `<article class="fiado-cliente"><h3>${esc(c.nome)}</h3><div class="fiado-line">${list.length} compra(s) · Total válido: <b>${asMoney(all)}</b> · Pago: ${asMoney(paid)}</div>${juros?`<div class="fiado-line">Juros pendentes: <b>${asMoney(juros)}</b></div>`:''}<div class="fiado-line ${due?'fiado-saldo':'fiado-pago'}">${due?'Em aberto: ':'Saldo em aberto: '}${asMoney(due)}</div>${badCount?`<p class="fiado-note" style="color:#b91c1c"><b>Atenção:</b> ${badCount} compra(s) com dados inconsistentes, fora dos totais acima. Confira ou exclua apenas os registros errados.</p>`:''}<div class="actions"><button type="button" class="secondary" onclick="FACILPRO_VENDAS.compartilhar('${safeId(c.id)}')">Gerar comprovante profissional</button></div><details><summary>Ver compras e pagamentos</summary>${list.map(v=>{
         const broken=invalidItems(v);
         const info=broken?null:late(v);
         const remaining=broken?0:dueCents(v),dueDate=v.vencimento ? v.vencimento.split('-').reverse().join('/') : 'Sem vencimento';
@@ -135,6 +166,6 @@
   $v('vAdicionar').addEventListener('click',addProduct);
   $v('vBusca').addEventListener('input',render);
   $v('fVenda').addEventListener('submit',register);
-  window.FACILPRO_VENDAS={render,pagar:payment,excluir:deleteSale,compartilhar:receipt,remover(index){cart.splice(index,1);renderCart();}};
+  window.FACILPRO_VENDAS={render,pagar:payment,excluir:deleteSale,compartilhar:receipt,fecharComprovante(){ $v('receiptModal').hidden=true; },baixarImagem:downloadReceipt,salvarPDF:printReceipt,whatsapp:sendReceipt,remover(index){cart.splice(index,1);renderCart();}};
   render();
 })();
