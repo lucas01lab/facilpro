@@ -80,29 +80,16 @@
   }
   let currentReceipt={message:'',phone:''};
   function roundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
-  function ensureReceiptElements(){
-    let modal=$v('receiptModal');
-    if(!modal){
-      modal=document.createElement('div');modal.id='receiptModal';modal.className='receipt-overlay';
-      modal.innerHTML='<div class="receipt-panel"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2>Comprovante profissional</h2><button type="button" class="secondary" id="receiptClose">Fechar</button></div><canvas id="receiptCanvas" class="receipt-preview" width="900" height="1200"></canvas><div class="receipt-actions"><button type="button" class="primary" id="receiptDownload">Baixar imagem</button><button type="button" class="secondary" id="receiptPDF">Salvar PDF</button><button type="button" class="secondary" id="receiptWhats">WhatsApp</button></div></div>';
-      document.body.appendChild(modal);
-      modal.querySelector('#receiptClose').onclick=()=>{modal.hidden=true;};
-      modal.querySelector('#receiptDownload').onclick=downloadReceipt;
-      modal.querySelector('#receiptPDF').onclick=printReceipt;
-      modal.querySelector('#receiptWhats').onclick=sendReceipt;
-    }
-    let canvas=modal.querySelector('#receiptCanvas');
-    if(!canvas){canvas=document.createElement('canvas');canvas.id='receiptCanvas';canvas.className='receipt-preview';canvas.width=900;canvas.height=1200;modal.querySelector('.receipt-panel')?.appendChild(canvas);}
-    return {modal,canvas};
-  }
   function receipt(clientKey) {
     const client=db.clientes.find(c=>c.id===clientKey);if(!client)return;
-    const receiptUI=ensureReceiptElements();
     const list=sales().filter(v=>v.cliente===clientKey).sort((a,b)=>a.data.localeCompare(b.data));
     const valid=list.filter(v=>!invalidItems(v));
     const total=sum(valid.map(totalCents)),paid=sum(valid.map(paidCents)),due=sum(valid.map(dueCents));
-    const canvas=receiptUI.canvas,ctx=canvas.getContext('2d');if(!ctx){alert('Seu navegador não conseguiu preparar o comprovante. Atualize a página e tente novamente.');return;}
+    const canvas=$v('receiptCanvas');
+    if(!canvas)return alert('Não foi possível localizar a área do comprovante. Atualize a página e tente novamente.');
     canvas.width=900;canvas.height=Math.max(1120,430+valid.reduce((n,v)=>n+100+(v.itens||[]).length*42,0));
+    const ctx=canvas.getContext('2d');
+    if(!ctx)return alert('Seu navegador não conseguiu preparar a imagem do comprovante.');
     ctx.fillStyle='#f1f5f9';ctx.fillRect(0,0,900,canvas.height);
     ctx.fillStyle='#14243b';ctx.fillRect(0,0,900,245);
     ctx.fillStyle='#22c55e';ctx.beginPath();ctx.arc(790,85,105,0,Math.PI*2);ctx.fill();
@@ -129,10 +116,13 @@
     const lines=valid.flatMap(v=>['',new Date(v.data).toLocaleDateString('pt-BR')+':',...(v.itens||[]).map(i=>`${i.quantidade}x ${i.nome} — ${asMoney(cents(i.preco)*i.quantidade)}`),`Total: ${asMoney(totalCents(v))} | Pago: ${asMoney(paidCents(v))}`]);
     const message=`Comprovante FácilPro — ${client.nome}\n${lines.join('\n')}\n\nTotal comprado: ${asMoney(total)}\nTotal pago: ${asMoney(paid)}\nSaldo em aberto (incluindo juros aplicáveis): ${asMoney(due)}`;
     let phone=(client.fone||'').replace(/\D/g,'');if(phone.length===10||phone.length===11)phone='55'+phone;
-    currentReceipt={message,phone:phone.length>=12?phone:''};receiptUI.modal.hidden=false;
+    currentReceipt={message,phone:phone.length>=12?phone:''};
+    const modal=$v('receiptModal');
+    if(!modal)return alert('A janela do comprovante não está disponível.');
+    modal.hidden=false;
   }
-  function downloadReceipt(){const canvas=$v('receiptCanvas');if(!canvas){alert('Gere o comprovante primeiro.');return;}canvas.toBlob(blob=>{if(!blob)return alert('Não foi possível gerar a imagem.');const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='comprovante-facilpro.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);},'image/png');}
-  function printReceipt(){const canvas=$v('receiptCanvas');if(!canvas){alert('Gere o comprovante primeiro.');return;}const data=canvas.toDataURL('image/png'),w=window.open('','_blank');if(!w)return alert('Permita janelas pop-up para salvar o PDF.');w.document.write(`<html><head><title>Comprovante FácilPro</title><style>body{margin:0;text-align:center}img{width:100%;max-width:750px}@media print{img{max-width:100%}}</style></head><body><img src="${data}"><script>window.onload=()=>window.print()<\/script></body></html>`);w.document.close();}
+  function downloadReceipt(){const canvas=$v('receiptCanvas');canvas.toBlob(blob=>{if(!blob)return alert('Não foi possível gerar a imagem.');const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='comprovante-facilpro.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);},'image/png');}
+  function printReceipt(){const data=$v('receiptCanvas').toDataURL('image/png'),w=window.open('','_blank');if(!w)return alert('Permita janelas pop-up para salvar o PDF.');w.document.write(`<html><head><title>Comprovante FácilPro</title><style>body{margin:0;text-align:center}img{width:100%;max-width:750px}@media print{img{max-width:100%}}</style></head><body><img src="${data}"><script>window.onload=()=>window.print()<\/script></body></html>`);w.document.close();}
   function sendReceipt(){const url='https://wa.me/'+currentReceipt.phone+'?text='+encodeURIComponent(currentReceipt.message);window.open(url,'_blank','noopener');}
 
   let lastRateKey=null;
@@ -182,6 +172,6 @@
   $v('vAdicionar').addEventListener('click',addProduct);
   $v('vBusca').addEventListener('input',render);
   $v('fVenda').addEventListener('submit',register);
-  window.FACILPRO_VENDAS={render,pagar:payment,excluir:deleteSale,compartilhar:receipt,fecharComprovante(){ const m=$v('receiptModal');if(m)m.hidden=true; },baixarImagem:downloadReceipt,salvarPDF:printReceipt,whatsapp:sendReceipt,remover(index){cart.splice(index,1);renderCart();}};
+  window.FACILPRO_VENDAS={render,pagar:payment,excluir:deleteSale,compartilhar:receipt,fecharComprovante(){ const modal=$v('receiptModal');if(modal)modal.hidden=true; },baixarImagem:downloadReceipt,salvarPDF:printReceipt,whatsapp:sendReceipt,remover(index){cart.splice(index,1);renderCart();}};
   render();
 })();
