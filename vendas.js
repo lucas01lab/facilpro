@@ -123,7 +123,25 @@
   }
   function downloadReceipt(){const canvas=$v('receiptCanvas');canvas.toBlob(blob=>{if(!blob)return alert('Não foi possível gerar a imagem.');const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='comprovante-facilpro.png';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);},'image/png');}
   function printReceipt(){const data=$v('receiptCanvas').toDataURL('image/png'),w=window.open('','_blank');if(!w)return alert('Permita janelas pop-up para salvar o PDF.');w.document.write(`<html><head><title>Comprovante FácilPro</title><style>body{margin:0;text-align:center}img{width:100%;max-width:750px}@media print{img{max-width:100%}}</style></head><body><img src="${data}"><script>window.onload=()=>window.print()<\/script></body></html>`);w.document.close();}
-  function sendReceipt(){const url='https://wa.me/'+currentReceipt.phone+'?text='+encodeURIComponent(currentReceipt.message);window.open(url,'_blank','noopener');}
+  async function sendReceipt(){
+    const canvas=$v('receiptCanvas');
+    if(!canvas)return alert('Não foi possível localizar a imagem do comprovante. Gere o comprovante novamente.');
+    const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
+    if(!blob)return alert('Não foi possível preparar a imagem do comprovante.');
+    const file=new File([blob],'comprovante-facilpro.png',{type:'image/png'});
+    const shareData={files:[file],title:'Comprovante FácilPro',text:currentReceipt.message};
+    if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
+      try{await navigator.share(shareData);}
+      catch(err){if(err && err.name!=='AbortError')alert('Não foi possível compartilhar a imagem. Tente baixar o comprovante e anexá-lo no WhatsApp.');}
+      return;
+    }
+    const url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;a.download='comprovante-facilpro.png';a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),3000);
+    const wa='https://wa.me/'+currentReceipt.phone+'?text='+encodeURIComponent(currentReceipt.message);
+    alert('Seu navegador não permite anexar a imagem diretamente. A imagem foi baixada. No WhatsApp, anexe o arquivo comprovante-facilpro.png à conversa.');
+    window.open(wa,'_blank','noopener');
+  }
 
   let lastRateKey=null;
   function render() {
